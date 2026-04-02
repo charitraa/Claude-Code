@@ -9,17 +9,6 @@
 [![Files](https://img.shields.io/badge/~1,900_files-source_only-grey)](#directory-structure)
 [![MCP Server](https://img.shields.io/badge/MCP-Explorer_Server-blueviolet)](#-explore-with-mcp-server)
 </div>
-
-Also check out these two cool projects:
-1. [claude_agent_teams_ui](https://github.com/777genius/claude_agent_teams_ui) - You're the CTO, agents are your team. They handle tasks themselves, message each other, review each other's code. You just look at the kanban board and drink coffee.
-2. [claude-notifications-go](https://github.com/777genius/claude-notifications-go) - 🔔 Cross-platform smart notifications plugin for Claude Code. 6 types. Click-to-focus. 1 line installation.
-
-   
-
-> The raw imported snapshot is preserved in this repository's [`backup` branch](https://github.com/777genius/claude-code-source-code/tree/backup). The `main` branch contains added documentation, tooling, and repository metadata.
-
-
-
 ---
 
 ## Table of Contents
@@ -101,10 +90,10 @@ claude mcp add claude-code-explorer -- npx -y claude-code-explorer-mcp
 ### One-liner setup (from source)
 
 ```bash
-git clone https://github.com/777genius/claude-code-source-code.git ~/claude-code-source-code \
-  && cd ~/claude-code-source-code/mcp-server \
+git clone https://github.com/charitraa/claude-code.git ~/claude-code \
+  && cd ~/claude-code/mcp-server \
   && npm install && npm run build \
-  && claude mcp add claude-code-explorer -- node ~/claude-code-source-code/mcp-server/dist/index.js
+  && claude mcp add claude-code-explorer -- node ~/claude-code/mcp-server/dist/index.js
 ```
 
 <details>
@@ -112,17 +101,17 @@ git clone https://github.com/777genius/claude-code-source-code.git ~/claude-code
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/777genius/claude-code-source-code.git
-cd claude-code-source-code/mcp-server
+git clone https://github.com/charitraa/claude-code.git
+cd claude-code/mcp-server
 
 # 2. Install & build
 npm install && npm run build
 
 # 3. Register with Claude Code
-claude mcp add claude-code-explorer -- node /absolute/path/to/claude-code-source-code/mcp-server/dist/index.js
+claude mcp add claude-code-explorer -- node /absolute/path/to/claude-code/mcp-server/dist/index.js
 ```
 
-Replace `/absolute/path/to/claude-code-source-code` with your actual clone path.
+Replace `/absolute/path/to/claude-code` with your actual clone path.
 
 </details>
 
@@ -149,8 +138,8 @@ Replace `/absolute/path/to/claude-code-source-code` with your actual clone path.
   "mcpServers": {
     "claude-code-explorer": {
       "command": "node",
-      "args": ["/absolute/path/to/claude-code-source-code/mcp-server/dist/index.js"],
-      "env": { "CLAUDE_CODE_SRC_ROOT": "/absolute/path/to/claude-code-source-code/src" }
+      "args": ["/absolute/path/to/claude-code/mcp-server/dist/index.js"],
+      "env": { "CLAUDE_CODE_SRC_ROOT": "/absolute/path/to/claude-code/src" }
     }
   }
 }
