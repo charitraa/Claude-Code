@@ -1,0 +1,95 @@
+[tool.poetry]
+name = "claude-code"
+version = "1.0.0"
+description = "Claude Code CLI - AI-powered command-line interface"
+authors = ["Anthropic <support@anthropic.com>"]
+license = "Proprietary"
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.scripts]
+claude = "claude_code.main:main"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+# Core Framework
+textual = "^0.50.0"          # Terminal UI (replaces React/Ink)
+typer = "^0.12.0"             # CLI argument parsing
+pydantic = "^2.0.0"           # Schema validation
+pydantic-settings = "^2.0.0"   # Settings management
+
+# API Integration
+anthropic = "^0.39.0"         # Anthropic API client
+httpx = "^0.27.0"              # HTTP client
+websockets = "^12.0.0"          # WebSocket support
+
+# MCP Integration
+mcp = "^0.1.0"                # Model Context Protocol
+
+# OpenTelemetry
+opentelemetry-api = "^1.20.0"   # Observability API
+opentelemetry-sdk = "^1.20.0"   # Observability SDK
+
+# Terminal and UI
+rich = "^13.0.0"               # Terminal styling
+prompt-toolkit = "^3.0.0"      # Advanced input handling
+
+# Utilities
+pyyaml = "^6.0.0"              # YAML parsing
+aiofiles = "^24.0.0"           # Async file operations
+toml = "^0.10.0"               # TOML parsing
+
+# Async and concurrency
+asyncio = "^3.4.0"             # Async utilities
+
+# Git operations
+gitpython = "^3.1.0"            # Git operations
+
+# Process execution
+psutil = "^5.9.0"              # Process and system utilities
+
+# Caching
+cachetools = "^5.3.0"           # Caching utilities
+
+# Logging
+loguru = "^0.7.0"               # Advanced logging
+
+# Type checking
+typing-extensions = "^4.0.0"     # Type extensions
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"               # Testing framework
+pytest-asyncio = "^0.21.0"     # Async testing support
+black = "^23.0.0"               # Code formatting
+ruff = "^0.1.0"                # Fast linter
+mypy = "^1.0.0"                # Type checking
+sphinx = "^7.0.0"               # Documentation
+sphinx-autodoc = "^2.0.0"       # Auto documentation
+pre-commit = "^3.0.0"            # Git hooks
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
