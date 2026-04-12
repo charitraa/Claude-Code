@@ -28,6 +28,10 @@ class ToolCategory(str, Enum):
     TASK = "task"
     CONFIG = "config"
     SYSTEM = "system"
+    UTILITY = "utility"
+    WEB = "web"
+    NOTEBOOK = "notebook"
+    SCHEDULING = "scheduling"
 
 
 class ToolInputSchema(BaseModel):

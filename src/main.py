@@ -27,6 +27,30 @@ from claude_code.tools import (
     FileReadTool,
     FileWriteTool,
     FileEditTool,
+    GrepTool,
+    GlobTool,
+    TaskCreateTool,
+    TaskGetTool,
+    TaskUpdateTool,
+    TaskListTool,
+    GitStatusTool,
+    GitDiffTool,
+    GitCommitTool,
+    GitLogTool,
+    ConfigSetTool,
+    ConfigGetTool,
+    ConfigListTool,
+    CronCreateTool,
+    CronDeleteTool,
+    CronListTool,
+    NotebookExecuteTool,
+    NotebookEditTool,
+    NotebookReadTool,
+    WebSearchTool,
+    WebReaderTool,
+    LSPDefinitionTool,
+    LSPCompletionTool,
+    LSPDiagnosticsTool,
 )
 
 
@@ -42,10 +66,52 @@ class ClaudeCodeCLI:
 
         # Initialize tool registry
         self.tool_registry = ToolRegistry()
+        
+        # Core tools
         self.tool_registry.register(BashTool())
         self.tool_registry.register(FileReadTool())
         self.tool_registry.register(FileWriteTool())
         self.tool_registry.register(FileEditTool())
+        
+        # Search tools
+        self.tool_registry.register(GrepTool())
+        self.tool_registry.register(GlobTool())
+        
+        # Task tools
+        self.tool_registry.register(TaskCreateTool())
+        self.tool_registry.register(TaskGetTool())
+        self.tool_registry.register(TaskUpdateTool())
+        self.tool_registry.register(TaskListTool())
+        
+        # Git tools
+        self.tool_registry.register(GitStatusTool())
+        self.tool_registry.register(GitDiffTool())
+        self.tool_registry.register(GitCommitTool())
+        self.tool_registry.register(GitLogTool())
+        
+        # Config tools
+        self.tool_registry.register(ConfigSetTool())
+        self.tool_registry.register(ConfigGetTool())
+        self.tool_registry.register(ConfigListTool())
+        
+        # Scheduling tools
+        self.tool_registry.register(CronCreateTool())
+        self.tool_registry.register(CronDeleteTool())
+        self.tool_registry.register(CronListTool())
+        
+        # Notebook tools
+        self.tool_registry.register(NotebookExecuteTool())
+        self.tool_registry.register(NotebookEditTool())
+        self.tool_registry.register(NotebookReadTool())
+        
+        # Web tools
+        self.tool_registry.register(WebSearchTool())
+        self.tool_registry.register(WebReaderTool())
+        
+        # LSP tools
+        self.tool_registry.register(LSPDefinitionTool())
+        self.tool_registry.register(LSPCompletionTool())
+        self.tool_registry.register(LSPDiagnosticsTool())
 
         # Initialize permission manager
         from claude_code.types import PermissionManager, PermissionContext

@@ -486,7 +486,7 @@ class ConfigResetTool(Tool):
                 with open(config_file, 'w') as f:
                     json.dump(config, f, indent=2)
 
-            keys_reset = [input_data.key] if input_data.key else "all"]
+            keys_reset = [input_data.key] if input_data.key else ["all"]
             return ToolResult(
                 tool_name=self.name,
                 success=True,
