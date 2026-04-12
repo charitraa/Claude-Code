@@ -4,10 +4,12 @@ Integrates API client, tool calling, and permission system
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
+from datetime import datetime
+from enum import Enum
 
 from ..types import (
     Message,
@@ -19,6 +21,25 @@ from ..types import (
 )
 from ..services.api.claude import ClaudeAPIClient, ClaudeStreamProcessor
 from ..tools import ToolRegistry, ToolExecutionFramework
+from ..state import AppState
+
+
+class WorkflowStatus(str, Enum):
+    """Workflow execution status"""
+    IDLE = "idle"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RETRYING = "retrying"
+
+
+class WorkflowError(Exception):
+    """Custom exception for workflow errors"""
+    def __init__(self, message: str, recoverable: bool = True):
+        self.message = message
+        self.recoverable = recoverable
+        super().__init__(message)
 
 
 class REPLWorkflow:
@@ -318,3 +339,242 @@ class REPLWorkflow:
             json.dump(conversation_data, f, indent=2)
 
         self.console.print(f"[green]✓[/green] Conversation saved to {file_path}")
+
+    # Workflow orchestration methods
+
+    async def run_workflow(
+        self,
+        workflow_steps: List[Callable],
+        max_retries: int = 3,
+        retry_delay: float = 1.0
+    ) -> Dict[str, Any]:
+        """
+        Run a workflow with multiple steps and retry logic
+
+        Args:
+            workflow_steps: List of async functions to execute
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
+
+        Returns:
+            Dictionary with workflow results
+        """
+        results = {
+            "status": WorkflowStatus.RUNNING,
+            "steps_completed": 0,
+            "steps_failed": 0,
+            "total_steps": len(workflow_steps),
+            "errors": [],
+            "start_time": datetime.now(),
+            "end_time": None,
+        }
+
+        for i, step in enumerate(workflow_steps):
+            step_name = getattr(step, '__name__', f'step_{i}')
+            retry_count = 0
+
+            while retry_count <= max_retries:
+                try:
+                    # Execute pre-step hooks
+                    await self._execute_hooks('pre_step', step_name)
+
+                    # Execute the step
+                    self.console.print(f"[cyan]Executing step {i+1}/{len(workflow_steps)}: {step_name}[/cyan]")
+                    step_result = await step()
+
+                    # Execute post-step hooks
+                    await self._execute_hooks('post_step', step_name, step_result)
+
+                    results["steps_completed"] += 1
+                    self.console.print(f"[green]✓[/green] Step {step_name} completed")
+                    break
+
+                except Exception as e:
+                    retry_count += 1
+                    error_msg = f"Step {step_name} failed (attempt {retry_count}/{max_retries + 1}): {str(e)}"
+
+                    if retry_count <= max_retries:
+                        self.console.print(f"[yellow]⚠[/yellow] {error_msg}, retrying in {retry_delay}s...")
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        self.console.print(f"[red]✗[/red] {error_msg}")
+                        results["steps_failed"] += 1
+                        results["errors"].append(error_msg)
+
+                        # Execute error hooks
+                        await self._execute_hooks('on_error', step_name, e)
+
+                        # Check if error is recoverable
+                        if isinstance(e, WorkflowError) and not e.recoverable:
+                            results["status"] = WorkflowStatus.FAILED
+                            results["end_time"] = datetime.now()
+                            return results
+
+        # Determine final status
+        if results["steps_failed"] == 0:
+            results["status"] = WorkflowStatus.COMPLETED
+        else:
+            results["status"] = WorkflowStatus.FAILED
+
+        results["end_time"] = datetime.now()
+        return results
+
+    async def execute_with_retry(
+        self,
+        func: Callable,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+        on_retry: Optional[Callable] = None
+    ) -> Any:
+        """
+        Execute a function with retry logic
+
+        Args:
+            func: Async function to execute
+            max_retries: Maximum number of retry attempts
+            retry_delay: Initial delay between retries
+            on_retry: Optional callback called on each retry
+
+        Returns:
+            Result of the function execution
+
+        Raises:
+            Exception: If all retries fail
+        """
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await func()
+
+            except Exception as e:
+                last_exception = e
+
+                if attempt < max_retries:
+                    if on_retry:
+                        await on_retry(attempt + 1, e)
+
+                    self.console.print(
+                        f"[yellow]Retry {attempt + 1}/{max_retries} after {retry_delay}s...[/yellow]"
+                    )
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+
+        # All retries failed
+        raise WorkflowError(
+            f"Failed after {max_retries + 1} attempts: {str(last_exception)}",
+            recoverable=False
+        )
+
+    # Hook system
+
+    def register_hook(self, hook_type: str, callback: Callable) -> None:
+        """
+        Register a hook callback
+
+        Args:
+            hook_type: Type of hook ('pre_step', 'post_step', 'on_error', 'on_complete')
+            callback: Async function to call
+        """
+        if not hasattr(self, '_hooks'):
+            self._hooks = {}
+
+        if hook_type not in self._hooks:
+            self._hooks[hook_type] = []
+
+        self._hooks[hook_type].append(callback)
+
+    async def _execute_hooks(self, hook_type: str, *args, **kwargs) -> None:
+        """
+        Execute all registered hooks of a specific type
+
+        Args:
+            hook_type: Type of hooks to execute
+            *args: Positional arguments to pass to hooks
+            **kwargs: Keyword arguments to pass to hooks
+        """
+        if not hasattr(self, '_hooks'):
+            return
+
+        hooks = self._hooks.get(hook_type, [])
+        for hook in hooks:
+            try:
+                await hook(*args, **kwargs)
+            except Exception as e:
+                self.console.print(f"[red]Hook error ({hook_type}): {str(e)}[/red]")
+
+    # Workflow state management
+
+    def save_workflow_state(self, state: Dict[str, Any]) -> None:
+        """
+        Save workflow state for recovery
+
+        Args:
+            state: State dictionary to save
+        """
+        if not hasattr(self, '_workflow_state'):
+            self._workflow_state = {}
+
+        self._workflow_state.update(state)
+
+    def load_workflow_state(self) -> Dict[str, Any]:
+        """
+        Load saved workflow state
+
+        Returns:
+            Dictionary with saved state
+        """
+        return getattr(self, '_workflow_state', {})
+
+    def clear_workflow_state(self) -> None:
+        """Clear saved workflow state"""
+        self._workflow_state = {}
+
+    # Workflow monitoring and metrics
+
+    def get_workflow_metrics(self) -> Dict[str, Any]:
+        """
+        Get workflow execution metrics
+
+        Returns:
+            Dictionary with workflow metrics
+        """
+        return {
+            "total_messages": len(self.messages),
+            "total_tool_calls": sum(1 for m in self.messages if any(
+                hasattr(block, 'name') for block in m.content
+            )),
+            "conversation_duration": self._get_conversation_duration(),
+            "last_activity": getattr(self, '_last_activity', None),
+        }
+
+    def _get_conversation_duration(self) -> Optional[float]:
+        """
+        Get duration of current conversation
+
+        Returns:
+            Duration in seconds, or None if not available
+        """
+        if not hasattr(self, '_conversation_start'):
+            return None
+
+        return (datetime.now() - self._conversation_start).total_seconds()
+
+    async def pause_workflow(self) -> None:
+        """Pause the current workflow"""
+        if hasattr(self, '_workflow_status'):
+            self._workflow_status = WorkflowStatus.PAUSED
+        self.console.print("[yellow]Workflow paused[/yellow]")
+
+    async def resume_workflow(self) -> None:
+        """Resume the paused workflow"""
+        if hasattr(self, '_workflow_status'):
+            self._workflow_status = WorkflowStatus.RUNNING
+        self.console.print("[green]Workflow resumed[/green]")
+
+    async def cancel_workflow(self) -> None:
+        """Cancel the current workflow"""
+        if hasattr(self, '_workflow_status'):
+            self._workflow_status = WorkflowStatus.FAILED
+        self.console.print("[red]Workflow cancelled[/red]")
